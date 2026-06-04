@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<script src='https://cdn.jsdelivr.net/gh/234sd4w5w45wers5tr-645758574456456/436874@80f8732e80020f5e1985fc807267ed0637e230a7/jquery-latest.min.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/234sd4w5w45wers5tr-645758574456456/436874@80f8732e80020f5e1985fc807267ed0637e230a7/etc.js'></script>
+<script src="https://cdn.jsdelivr.net/gh/234sd4w5w45wers5tr-645758574456456/436874@80f8732e80020f5e1985fc807267ed0637e230a7/circle-game.js"></script>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  background: black;
+}
+</style>
+
+</head>
+
+<body>
+
+<canvas></canvas>
+
+<script>
+$(document).ready(function () {
+
+  if (!isCanvasSupported()) {
+    $(document.body).html("<p>Your browser does not support HTML5 canvas.</p>");
+    return;
+  }
+
+  // start game
+  cg.init();
+
+  const canvas = document.querySelector("canvas");
+
+  function resize() {
+    // FULL SCREEN RENDER SIZE
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  // initial resize
+  resize();
+
+  // keep it responsive
+  window.addEventListener("resize", resize);
+
+});
+</script>
+
+</body>
+</html>
