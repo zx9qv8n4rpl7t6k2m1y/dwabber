@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+<!-- Ultimate Game Stash file--> 
+
+<html>
+<head>
+  <script src='https://cdn.jsdelivr.net/gh/234sd4w5w45wers5tr-645758574456456/436874@80f8732e80020f5e1985fc807267ed0637e230a7/jquery-latest.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/gh/234sd4w5w45wers5tr-645758574456456/436874@80f8732e80020f5e1985fc807267ed0637e230a7/etc.js'></script>
+  <script src="https://cdn.jsdelivr.net/gh/zx9qv8n4rpl7t6k2m1y/dwabber@main/game2.js"></script>
+  <script type='text/javascript'>
+    $(document).ready(function() {
+      if (isCanvasSupported())
+        cg.init()
+      else
+        $(document.body).html("<style>p{text-align:center}body{padding:10px}</style><p>Your browser does not support HTML5.</p>")
+    })
+  </script>
+
+  <style type='text/css'>
+    *, html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;         /* ← kills the scrollbars */
+      background-color: black;
+    }
+    canvas {
+      display: block;           /* ← removes inline whitespace gap */
+      width: 100vw;             /* ← fills the full viewport */
+      height: 100vh;
+      background-color: black;
+    }
+  </style>
+</head>
+<body>
+  <canvas></canvas>
+</body>
+</html>
