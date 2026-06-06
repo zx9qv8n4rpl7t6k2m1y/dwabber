@@ -848,15 +848,10 @@ var cg={
 /* ============================================================
    CIRCLE
 ============================================================ */
-var min=cg.config.circle.minRadius;
-var max=cg.config.circle.maxRadius;
-
-if(cg.player){
-    min += Math.floor(cg.player.radius * 0.2);
-    max += Math.floor(cg.player.radius * 0.5);
-}
-
-this.radius=rand(min,max,cg.config.circle.radiusInterval);
+var Circle=function(inCenter){
+  /* circles stay in a fixed size range — as you grow, more of them become eatable */
+  var min=cg.config.circle.minRadius,max=cg.config.circle.maxRadius;
+  this.radius=rand(min,max,cg.config.circle.radiusInterval);
   this.color=cg.config.circle.colors[Math.floor(Math.random()*cg.config.circle.colors.length)];
   this.pulsePhase=Math.random()*Math.PI*2;
   this.golden=false;
