@@ -13,6 +13,10 @@ var save = {
 };
 function loadSave(){
     try{var d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(d)for(var k in d)save[k]=d[k];}catch(e){}
+    /* safety: ensure arrays always exist */
+    if(!save.achievements)save.achievements=[];
+    if(!save.claimedAchs)save.claimedAchs=[];
+    if(!save.unlocked)save.unlocked=['classic','neon','none','space'];
 }
 function writeSave(){
     try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}
@@ -41,7 +45,7 @@ var SKINS=[
    c1:'#FFAA66',c2:'#FF4400',c3:'#880000',glow:'#FF6600', r0:18,eat:1,over:0,mag:0,  sh:0,cm:1.5},
   {id:'phantom', name:'Phantom', cost:280, perk:'Two Lives',              desc:'Has TWO shield rings. Survive two fatal hits before dying.',
    c1:'#CCCCDD',c2:'#8888AA',c3:'#333355',glow:'#9999CC', r0:10,eat:1,over:0,mag:0,  sh:2,cm:1  },
-  {id:'frost',   name:'Frost',   cost:160, perk:'Arctic Pull',            desc:'Weaker magnet pull on nearby small circles. Icy aesthetic.',
+  {id:'frost',   name:'Frost',   cost:160, perk:'Arctic Aura',            desc:'Slows all circles within 80px to 70% speed. Very powerful defensively.',
    c1:'#EEFEFF',c2:'#88DDFF',c3:'#0088AA',glow:'#44CCFF', r0:10,eat:1,over:0,mag:80, sh:0,cm:1  },
   {id:'shadow',  name:'Shadow',  cost:220, perk:'Sneaky Eater + Coins',   desc:'Eat circles up to 5px larger and earn +20% bonus coins.',
    c1:'#BBBBCC',c2:'#554488',c3:'#110022',glow:'#8844BB', r0:10,eat:1,over:5,mag:0,  sh:0,cm:1.2},
@@ -55,8 +59,10 @@ var SKINS=[
    c1:'#DDEEFF',c2:'#88BBFF',c3:'#224488',glow:'#AACCFF', r0:10,eat:1,over:0,mag:0,  sh:2,cm:1.2},
   {id:'venom',   name:'Venom',   cost:240, perk:'Toxic Grower',           desc:'Starts small but earns +2 per eat AND +30% more coins.',
    c1:'#AAFFAA',c2:'#22CC22',c3:'#004400',glow:'#44FF44', r0:6, eat:2,over:0,mag:0,  sh:0,cm:1.3},
-  {id:'solar',   name:'Solar',   cost:320, perk:'Magnet + Appetite',      desc:'Pulls small circles AND can eat circles 5px larger.',
-   c1:'#FFEEAA',c2:'#FFAA00',c3:'#AA5500',glow:'#FFCC33', r0:10,eat:1,over:5,mag:100,sh:0,cm:1  }
+  {id:'solar',   name:'Solar',   cost:320, perk:'Magnet + Appetite',      desc:'Magnet auto-pulls smaller circles to you. Can also eat circles 5px larger.',
+   c1:'#FFEEAA',c2:'#FFAA00',c3:'#AA5500',glow:'#FFCC33', r0:10,eat:1,over:5,mag:100,sh:0,cm:1  },
+  {id:'specter', name:'Specter', cost:0,   perk:'Ghost + Riches',         desc:'ACHIEVEMENT UNLOCK (Score 1000). Huge appetite: eat 10px larger AND 2x coins.',
+   c1:'#CCFFEE',c2:'#44FFAA',c3:'#006633',glow:'#88FFCC', r0:10,eat:1,over:10,mag:0, sh:0,cm:2,  ach:true}
 ];
 
 /* ── Trails ─────────────────────────────────────────────────── */
@@ -108,7 +114,7 @@ var ACHS=[
   {id:'score100',  name:'Centurion',     coins:50,  desc:'Score 100+ in a single run.'},
   {id:'score200',  name:'Legend',        coins:100, desc:'Score 200+ in a single run.'},
   {id:'score500',  name:'Unstoppable',   coins:200, desc:'Score 500+ in a single run.'},
-  {id:'score1000', name:'Mythical',      coins:300, desc:'Score 1000+ in a single run.'},
+  {id:'score1000', name:'Mythical',      coins:300, desc:'Score 1000+ in a single run. Unlocks Specter skin!', unlock:'specter'},
   {id:'goat5k',    name:'GOAT',          coins:500, desc:'Score 5000+. Unlocks the Swarm trail!', unlock:'swarm'},
   {id:'golden5',   name:'Golden Touch',  coins:25,  desc:'Eat 5 golden circles in one run.'},
   {id:'powerup3',  name:'Power Hungry',  coins:20,  desc:'Collect 3 powerups in one run.'},
@@ -133,6 +139,7 @@ var cg={
   /* ── State ──────────────────────────────────────────────── */
   screen:'menu', shopTab:0, shopInfoSkin:null,
   menuSkinIdx:0, menuTrailIdx:0, menuBgIdx:0,
+  achScroll:0, achMaxScroll:0,
   clickRegions:[], hovR:null, mouseX:0, mouseY:0,
 
   /* ── Runtime ────────────────────────────────────────────── */
@@ -846,69 +853,95 @@ var cg={
     }
   },
 
-  /* ── Achievements screen ─────────────────────────────────── */
+  /* ── Achievements screen (scrollable) ────────────────────── */
   drawAchs:function(){
     var ctx=cg.ctx,W=cg.config.width,H=cg.config.height;
     cg.clickRegions=[];
     if(!save.claimedAchs)save.claimedAchs=[];
-    ctx.fillStyle='rgba(0,0,0,0.9)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(0,0,0,0.92)';ctx.fillRect(0,0,W,H);
     ctx.save();
-    /* back */
+
+    /* header */
     ctx.font='bold 13pt Verdana';ctx.fillStyle=cg.hovR==='achback'?'#FFFFFF':'rgba(255,255,255,0.65)';
     ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('← BACK',18,28);cg.reg('achback',10,14,100,28);
-    /* title */
-    ctx.font='bold 24pt Verdana';ctx.fillStyle='#FFFFFF';ctx.textAlign='center';
-    ctx.fillText('ACHIEVEMENTS',W/2,28);
-    /* coins */
+    ctx.font='bold 24pt Verdana';ctx.fillStyle='#FFFFFF';ctx.textAlign='center';ctx.fillText('ACHIEVEMENTS',W/2,28);
     cg.drawCoinIcon(W-74,26,11);
     ctx.font='bold 15pt Verdana';ctx.fillStyle='#FFD700';ctx.textAlign='left';ctx.fillText(save.coins,W-58,26);
 
-    var rowH=58,gY=55,padding=12;
-    for(var i=0;i<ACHS.length;i++){
+    /* scrollable list */
+    var rowH=56,gY=54,pad=10;
+    var visRows=Math.floor((H-gY-40)/rowH);
+    cg.achMaxScroll=Math.max(0,ACHS.length-visRows);
+    cg.achScroll=Math.max(0,Math.min(cg.achScroll,cg.achMaxScroll));
+
+    for(var vi=0;vi<visRows;vi++){
+      var i=vi+cg.achScroll;
+      if(i>=ACHS.length)break;
       var a=ACHS[i];
       var done=save.achievements.indexOf(a.id)>=0;
       var claimed=save.claimedAchs.indexOf(a.id)>=0;
-      var ry=gY+i*rowH;
-      if(ry+rowH>H-10)break; /* don't overflow screen */
+      var ry=gY+vi*rowH;
 
-      /* row bg */
-      ctx.fillStyle=done?(claimed?'rgba(255,255,255,0.05)':'rgba(255,215,0,0.1)'):'rgba(255,255,255,0.03)';
-      cg.rr(padding,ry,W-padding*2,rowH-4,8);
+      ctx.fillStyle=done?(claimed?'rgba(255,255,255,0.04)':'rgba(255,215,0,0.08)'):'rgba(255,255,255,0.02)';
+      cg.rr(pad,ry,W-pad*2,rowH-4,8);
 
       /* status dot */
-      ctx.beginPath();ctx.arc(padding+16,ry+rowH/2-2,8,0,Math.PI*2);
-      ctx.fillStyle=done?(claimed?'#44AA44':'#FFD700'):'#333333';ctx.fill();
+      ctx.beginPath();ctx.arc(pad+15,ry+rowH/2-2,7,0,Math.PI*2);
+      ctx.fillStyle=done?(claimed?'#44AA44':'#FFD700'):'#2a2a2a';ctx.fill();
       if(done&&!claimed){
-        ctx.font='bold 7pt Verdana';ctx.fillStyle='#000';
-        ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',padding+16,ry+rowH/2-2);
+        ctx.font='bold 7pt Arial';ctx.fillStyle='#000';
+        ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',pad+15,ry+rowH/2-2);
+      } else if(done&&claimed){
+        ctx.font='bold 8pt Arial';ctx.fillStyle='#FFF';
+        ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('✓',pad+15,ry+rowH/2-2);
       }
 
-      /* name + desc */
+      /* text */
       ctx.textAlign='left';ctx.textBaseline='top';
-      ctx.font='bold 11pt Verdana';ctx.fillStyle=done?'#FFFFFF':'rgba(255,255,255,0.38)';
-      ctx.fillText(a.name,padding+32,ry+8);
-      ctx.font='9pt Verdana';ctx.fillStyle='rgba(255,255,255,0.45)';
-      ctx.fillText(a.desc,padding+32,ry+26);
+      ctx.font='bold 11pt Verdana';ctx.fillStyle=done?'#FFFFFF':'rgba(255,255,255,0.3)';
+      ctx.fillText(a.name,pad+28,ry+7);
+      ctx.font='9pt Verdana';ctx.fillStyle=done?'rgba(255,255,255,0.55)':'rgba(255,255,255,0.22)';
+      ctx.fillText(a.desc,pad+28,ry+24);
 
-      /* coins reward */
-      cg.drawCoinIcon(W-padding-56,ry+rowH/2-2,8);
-      ctx.font='bold 10pt Verdana';ctx.fillStyle=done?'#FFD700':'rgba(255,215,0,0.3)';
-      ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('+'+a.coins,W-padding-44,ry+rowH/2-2);
+      /* coin reward */
+      var coinX=W-pad-100;
+      cg.drawCoinIcon(coinX,ry+rowH/2-2,7);
+      ctx.font='bold 9pt Verdana';ctx.fillStyle=done?'#FFD700':'rgba(255,215,0,0.28)';
+      ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('+'+a.coins,coinX+10,ry+rowH/2-2);
 
-      /* claim button */
+      /* claim / claimed */
       if(done&&!claimed){
-        var bw=52,bh=22,bx=W-padding-bw-2,by=ry+rowH/2-bh/2-2;
-        var chov=cg.hovR==='claim'+a.id;
-        ctx.fillStyle=chov?'rgba(255,200,0,0.9)':'rgba(200,150,0,0.7)';
-        ctx.shadowColor='#FFD700';ctx.shadowBlur=chov?8:0;
-        cg.rr(bx,by,bw,bh,6);ctx.shadowBlur=0;
+        var bw=48,bh=20,bx=W-pad-bw,by=ry+rowH/2-bh/2-2;
+        var ch=cg.hovR==='claim'+a.id;
+        ctx.fillStyle=ch?'rgba(255,200,0,0.95)':'rgba(200,150,0,0.75)';
+        ctx.shadowColor='#FFD700';ctx.shadowBlur=ch?8:0;
+        cg.rr(bx,by,bw,bh,5);ctx.shadowBlur=0;
         ctx.font='bold 8pt Verdana';ctx.fillStyle='#000';
         ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('CLAIM',bx+bw/2,by+bh/2);
         cg.reg('claim'+a.id,bx,by,bw,bh);
       } else if(claimed){
-        ctx.font='9pt Verdana';ctx.fillStyle='rgba(100,200,100,0.7)';
-        ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText('✓ claimed',W-padding-4,ry+rowH/2-2);
+        ctx.font='9pt Verdana';ctx.fillStyle='rgba(80,200,80,0.65)';
+        ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText('claimed',W-pad-4,ry+rowH/2-2);
       }
+    }
+
+    /* scroll arrows */
+    if(cg.achScroll>0){
+      var uHov=cg.hovR==='achUp';
+      ctx.font=(uHov?'bold ':'')+'16pt Verdana';ctx.fillStyle=uHov?'#FFFFFF':'rgba(255,255,255,0.5)';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('▲',W/2,gY-14);
+      cg.reg('achUp',W/2-30,gY-26,60,22);
+    }
+    if(cg.achScroll<cg.achMaxScroll){
+      var dHov=cg.hovR==='achDown';
+      ctx.font=(dHov?'bold ':'')+'16pt Verdana';ctx.fillStyle=dHov?'#FFFFFF':'rgba(255,255,255,0.5)';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('▼',W/2,H-16);
+      cg.reg('achDown',W/2-30,H-28,60,22);
+    }
+    /* scroll position hint */
+    if(cg.achMaxScroll>0){
+      ctx.font='9pt Verdana';ctx.fillStyle='rgba(255,255,255,0.25)';ctx.textAlign='right';
+      ctx.fillText((cg.achScroll+1)+'-'+(Math.min(cg.achScroll+visRows,ACHS.length))+' / '+ACHS.length,W-pad,H-10);
     }
     ctx.restore();
   },
